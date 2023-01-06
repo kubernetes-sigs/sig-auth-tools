@@ -1,0 +1,24 @@
+name: sig-auth-project-board-sync
+
+on:
+  schedule:
+    - cron: "0 14 * * *" # Every day at 14:00 UTC / 6:00 PST
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Sync sig-auth project board
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+    - name: Sync sig-auth project board - kubernetes org
+      env:
+        GITHUB_TOKEN: ${{ secrets.SYNC_PROJECTS_PAT }}
+      run: |
+        go run main.go
