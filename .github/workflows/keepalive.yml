@@ -1,0 +1,49 @@
+# Monthly keepalive commits work around GitHub's 60-day inactivity cutoff.
+# Keep this workflow on main; allow GITHUB_TOKEN to create/push keepalive.
+# If disabled, re-enable both workflows and run this one manually.
+name: sig-auth-workflow-keepalive
+
+on:
+  schedule:
+    - cron: "17 3 1 * *"  # Monthly, on the first day at 03:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: workflow-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    name: Keep scheduled workflows active
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Update keepalive branch
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads origin refs/heads/keepalive; then
+            git fetch --depth=1 origin refs/heads/keepalive
+            git checkout -B keepalive FETCH_HEAD
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then
+              exit "$status"
+            fi
+            # Start a separate history without copying source or workflows.
+            git switch --orphan keepalive
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > timestamp.txt
+          git add timestamp.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore: keep scheduled workflows active"
+          git push origin HEAD:refs/heads/keepalive
